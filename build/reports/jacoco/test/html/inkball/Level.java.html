@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Level.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inkball</a> &gt; <a href="index.source.html" class="el_package">inkball</a> &gt; <span class="el_source">Level.java</span></div><h1>Level.java</h1><pre class="source lang-java linenums">package inkball;
+
+import processing.core.PApplet;
+import processing.core.PImage;
+import processing.core.PVector;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+
+import static jdk.nashorn.internal.objects.NativeMath.random;
+
+public class Level {
+    private App p;
+    private String layout;
+    private PImage[] walls;
+    private PImage[] holes;
+    private PImage tile;
+    private PImage entrypoint;
+    private PImage[] ballImages;
+    private String[] lines;
+    private char[][] grid;
+<span class="fc" id="L24">    private List&lt;Hole&gt; holeList = new ArrayList&lt;&gt;();</span>
+    private List&lt;PVector&gt; spawnPoints;
+<span class="fc" id="L26">    private Map&lt;PVector, Integer&gt; brickHitCounts = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L28">    public Level(App p, String layout, PImage[] walls, PImage[] holes, PImage tile, PImage entrypoint, PImage[] ballImages) {</span>
+<span class="fc" id="L29">        this.p = p;</span>
+<span class="fc" id="L30">        this.layout = layout;</span>
+<span class="fc" id="L31">        this.walls = walls;</span>
+<span class="fc" id="L32">        this.holes = holes;</span>
+<span class="fc" id="L33">        this.tile = tile;</span>
+<span class="fc" id="L34">        this.entrypoint = entrypoint;</span>
+<span class="fc" id="L35">        this.ballImages = ballImages;</span>
+<span class="fc" id="L36">        this.lines = p.loadStrings(layout);</span>
+<span class="fc" id="L37">        this.spawnPoints = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L39">        grid = new char[lines.length][];</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        for (int i = 0; i &lt; lines.length; i++) {</span>
+<span class="fc" id="L41">            grid[i] = lines[i].toCharArray();</span>
+        }
+<span class="fc" id="L43">        initializeLevel();</span>
+<span class="fc" id="L44">    }</span>
+
+    private void initializeLevel() {
+
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        for (int row = 0; row &lt; grid.length; row++) {</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            for (int col = 0; col &lt; grid[row].length; col++) {</span>
+<span class="fc" id="L50">                float x = col * App.CELLSIZE;</span>
+<span class="fc" id="L51">                float y = row * App.CELLSIZE + App.TOPBAR;  // 避开顶部区域</span>
+<span class="fc" id="L52">                char tileChar = grid[row][col];</span>
+
+<span class="fc bfc" id="L54" title="All 6 branches covered.">                switch (tileChar) {</span>
+                    case 'B':
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">                        if (col + 1 &lt; grid[row].length) {</span>
+<span class="fc" id="L57">                            int colorIndex = Character.getNumericValue(grid[row][col + 1]);</span>
+<span class="fc" id="L58">                            PVector position = new PVector(col * App.CELLSIZE, row * App.CELLSIZE + App.TOPBAR);</span>
+
+                            // 创建预置的球
+<span class="fc bfc" id="L61" title="All 2 branches covered.">                            float vx = random(1) &lt; 0.5 ? 2 : -2;</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">                            float vy = random(1) &lt; 0.5 ? 2 : -2;</span>
+
+<span class="fc" id="L64">                            Ball prePlacedBall = new Ball(p, position.x, position.y, vx, vy, ballImages[colorIndex], this, colorIndex, ballImages);</span>
+<span class="fc" id="L65">                            p.addBall(prePlacedBall);</span>
+
+                            // 将当前字符和右边的字符改为空格
+<span class="fc" id="L68">                            grid[row][col] = ' ';</span>
+<span class="fc" id="L69">                            grid[row][col + 1] = ' ';</span>
+
+                            // 跳过下一个字符，因为已经处理过
+<span class="fc" id="L72">                        }</span>
+                        break;
+
+                    case 'H':
+                        // 将它、它右边、下边和右下角的字符改为 'D'
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                        if (col + 1 &lt; grid[row].length) {</span>
+<span class="fc" id="L78">                            char holeColorChar = grid[row][col+1];</span>
+<span class="fc" id="L79">                            grid[row][col + 1] = ' ';</span>
+<span class="fc" id="L80">                            int holeColor = Character.getNumericValue(holeColorChar);</span>
+
+                            // 记录洞的位置和颜色
+<span class="fc" id="L83">                            holeList.add(new Hole(col * App.CELLSIZE, row * App.CELLSIZE + App.TOPBAR, holeColor));</span>
+                            // 跳过后一个字符
+<span class="fc" id="L85">                            col++;</span>
+<span class="fc" id="L86">                        }</span>
+                        break;
+
+                    case 'S' :
+                        // 将 'S' 位置添加到生成点列表中
+<span class="fc" id="L91">                        float sx = col * App.CELLSIZE + App.CELLSIZE / 2;</span>
+<span class="fc" id="L92">                        float sy = row * App.CELLSIZE + App.CELLSIZE / 2 + App.TOPBAR;</span>
+<span class="fc" id="L93">                        spawnPoints.add(new PVector(sx, sy));</span>
+<span class="fc" id="L94">                        break;</span>
+
+                    case '5':
+
+<span class="fc" id="L98">                        brickHitCounts.put(new PVector(col , row ), 0);</span>
+<span class="fc" id="L99">                        break;</span>
+
+                    case '6':
+
+<span class="fc" id="L103">                        brickHitCounts.put(new PVector(col , row ), 0);</span>
+<span class="fc" id="L104">                        break;</span>
+                    default:
+                        // 其他字符不做操作
+                        break;
+                }
+            }
+        }
+
+
+<span class="fc" id="L113">    }</span>
+
+    public PVector getRandomSpawnPoint() {
+<span class="fc" id="L116">        int index = App.random.nextInt(spawnPoints.size());</span>
+<span class="fc" id="L117">        return spawnPoints.get(index);</span>
+    }
+    // 解析并绘制关卡
+    public void draw() {
+        // 读取layout文件，逐行解析
+
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        for (int row = 0; row &lt; lines.length; row++) {</span>
+<span class="fc" id="L124">            String line = lines[row];</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            for (int col = 0; col &lt; line.length(); col++) {</span>
+<span class="fc" id="L126">                float x = col * App.CELLSIZE;</span>
+<span class="fc" id="L127">                float y = row * App.CELLSIZE + App.TOPBAR;  // 避开顶部区域</span>
+
+                // 首先绘制背景瓦片 (tile)
+<span class="fc" id="L130">                p.image(tile, x, y, App.CELLSIZE, App.CELLSIZE);</span>
+            }
+        }
+        // 遍历每一行，每一列
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        for (int row = 0; row &lt; grid.length; row++) {</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">            for (int col = 0; col &lt; grid[0].length; col++) {</span>
+<span class="fc" id="L136">                float x = col * App.CELLSIZE;</span>
+<span class="fc" id="L137">                float y = row * App.CELLSIZE + App.TOPBAR;  // 避开顶部区域</span>
+
+
+<span class="fc" id="L140">                char tileChar = grid[row][col];</span>
+
+<span class="fc bfc" id="L142" title="All 10 branches covered.">                switch (tileChar) {</span>
+                    case 'X':
+                        // 绘制墙壁 (默认灰色墙)
+<span class="fc" id="L145">                        p.image(walls[0], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L146">                        break;</span>
+                    case '1':
+                        // 绘制橙色墙壁
+<span class="fc" id="L149">                        p.image(walls[1], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L150">                        break;</span>
+                    case '2':
+                        // 绘制蓝色墙壁
+<span class="fc" id="L153">                        p.image(walls[2], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L154">                        break;</span>
+                    case '3':
+                        // 绘制绿色墙壁
+<span class="fc" id="L157">                        p.image(walls[3], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L158">                        break;</span>
+                    case '4':
+                        // 绘制黄色墙壁
+<span class="fc" id="L161">                        p.image(walls[4], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L162">                        break;</span>
+                    case '5':
+                        // 如果该位置的墙还没有被击破，则绘制
+<span class="fc" id="L165">                        PVector wallPosition = new PVector(col, row);</span>
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">                        if (brickHitCounts.containsKey(wallPosition)) {</span>
+<span class="fc" id="L167">                            p.image(walls[5], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+                        }
+                        break;
+                    case '6':
+                        // 如果该位置的墙还没有被击破，则绘制
+<span class="fc" id="L172">                        PVector wallPosition1 = new PVector(col, row);</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">                        if (brickHitCounts.containsKey(wallPosition1)) {</span>
+<span class="fc" id="L174">                            p.image(walls[6], x, y, App.CELLSIZE, App.CELLSIZE);</span>
+                        }
+                        break;
+                    case 'H':
+                        // 检查下一个字符确定洞的颜色
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">                        if (col + 1 &lt; grid[0].length) {</span>
+<span class="fc" id="L180">                            char holeColor = lines[row].charAt(col+1);</span>
+<span class="fc" id="L181">                            int holeIndex = Character.getNumericValue(holeColor);</span>
+
+<span class="fc" id="L183">                            p.image(holes[holeIndex], x, y, App.CELLSIZE * 2, App.CELLSIZE * 2);</span>
+
+                            // 跳过下一个字符（即洞颜色的数字）
+<span class="fc" id="L186">                            col++;</span>
+
+                            // 为了避免洞右下方格子被重新绘制，跳过下一个格子
+//                            if (row + 1 &lt; lines.length) {
+//                                String nextLine = lines[row + 1];
+//                                if (col &lt; nextLine.length()) {
+//                                    // 跳过下一行中与洞相交的两个格子
+//                                    lines[row + 1] = nextLine.substring(0, col) + &quot;  &quot; + nextLine.substring(col + 2);
+//                                }
+//                            }
+<span class="fc" id="L196">                        }</span>
+                        break;
+
+                    case 'S':
+                        // 绘制生成点
+<span class="fc" id="L201">                        p.image(entrypoint, x, y, App.CELLSIZE, App.CELLSIZE);</span>
+<span class="fc" id="L202">                        break;</span>
+                    default:
+                        // 默认只绘制背景瓦片，其他字符忽略
+                        break;
+                }
+            }
+        }
+<span class="fc" id="L209">    }</span>
+
+    public boolean isWall(float x, float y) {
+        // 将坐标转换为网格上的行和列
+<span class="fc" id="L213">        int col = (int) (x / App.CELLSIZE);</span>
+<span class="fc" id="L214">        int row = (int) ((y - App.TOPBAR) / App.CELLSIZE);</span>
+
+        // 防止数组越界
+//        if (col &lt; 0 || col &gt;= App.BOARD_WIDTH || row &lt; 0 || row &gt;= App.BOARD_HEIGHT) {
+//            return false;
+//        }
+//
+//        if (row &gt;= lines.length || col &gt;= lines[row].length()) {
+//            return false;
+//        }
+
+<span class="fc" id="L225">        char tileChar = grid[row][col];</span>
+<span class="fc bfc" id="L226" title="All 14 branches covered.">        return tileChar == 'X' || tileChar == '1' || tileChar == '2' || tileChar == '3' || tileChar == '4' || tileChar == '5' || tileChar == '6';</span>
+    }
+
+    public void checkBrickCollision(float x, float y, int colorIndex) {
+<span class="fc" id="L230">        int wallPosition = getWallColor(x, y);  // 获取该位置的墙</span>
+<span class="fc bfc" id="L231" title="All 2 branches covered.">        if (wallPosition &gt;= 5 ) {</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">            if (colorIndex == wallPosition-4) {  // 颜色为1的橙色球</span>
+<span class="fc" id="L233">                int col = (int) (x / App.CELLSIZE);</span>
+<span class="fc" id="L234">                int row = (int) ((y - App.TOPBAR) / App.CELLSIZE);</span>
+<span class="fc" id="L235">                PVector temp=new PVector(col, row);</span>
+<span class="fc" id="L236">                int hitCount = brickHitCounts.get(temp) + 1;</span>
+<span class="fc" id="L237">                System.out.println(hitCount);</span>
+<span class="fc" id="L238">                brickHitCounts.put(temp, hitCount);</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                if (hitCount &gt;= 3) {</span>
+                    // 墙被击中3次，移除该墙
+<span class="fc" id="L241">                    brickHitCounts.remove(temp);</span>
+<span class="fc" id="L242">                    grid[row][col]=' ';</span>
+                    // 返回true表示墙被击破
+                }
+
+            }
+        }
+
+<span class="fc" id="L249">    }</span>
+
+    public int getWallColor(float x, float y) {
+        // 将坐标转换为网格上的行和列
+<span class="fc" id="L253">        int col = (int) (x / App.CELLSIZE);</span>
+<span class="fc" id="L254">        int row = (int) ((y - App.TOPBAR) / App.CELLSIZE);</span>
+
+        // 防止数组越界
+//        if (col &lt; 0 || col &gt;= App.BOARD_WIDTH || row &lt; 0 || row &gt;= App.BOARD_HEIGHT) {
+//            return 0; // 无颜色
+//        }
+//
+//        if (row &gt;= lines.length || col &gt;= lines[row].length()) {
+//            return 0; // 无颜色
+//        }
+
+<span class="fc" id="L265">        char tileChar = grid[row][col];</span>
+
+        // 判断是否是有颜色的墙并返回颜色编号
+<span class="fc bfc" id="L268" title="All 7 branches covered.">        switch (tileChar) {</span>
+            case '1':
+<span class="fc" id="L270">                return 1; // 橙色墙</span>
+            case '2':
+<span class="fc" id="L272">                return 2; // 蓝色墙</span>
+            case '3':
+<span class="fc" id="L274">                return 3; // 绿色墙</span>
+            case '4':
+<span class="fc" id="L276">                return 4; // 黄色墙</span>
+            case '5':
+<span class="fc" id="L278">                return 5;</span>
+            case '6':
+<span class="fc" id="L280">                return 6;</span>
+            default:
+<span class="fc" id="L282">                return 0; // 没有颜色或无效字符</span>
+        }
+    }
+
+
+
+    public Hole checkHoleCollision(float x, float y) {
+<span class="fc bfc" id="L289" title="All 2 branches covered.">        for (Hole hole : holeList) {</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">            if (hole.isInside(x, y)) {</span>
+<span class="fc" id="L291">                return hole;  // 返回该洞</span>
+            }
+<span class="fc" id="L293">        }</span>
+<span class="fc" id="L294">        return null;  // 没有找到匹配的洞</span>
+    }
+
+    public List&lt;PVector&gt; getWallPositions() {
+<span class="fc" id="L298">        List&lt;PVector&gt; wallPositions = new ArrayList&lt;&gt;();</span>
+
+        // 遍历网格，寻找代表墙的字符
+<span class="fc" id="L301">        int rows = grid.length;</span>
+<span class="fc" id="L302">        int cols = grid[0].length;</span>
+
+        // 处理上边界 (row = 0)
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        for (int col = 0; col &lt; cols; col++) {</span>
+<span class="fc" id="L306">            char tile = grid[0][col];</span>
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">            if (check(tile)) {</span>
+<span class="fc" id="L308">                wallPositions.add(new PVector(col, 0));</span>
+            }
+        }
+
+        // 处理右边界 (col = cols - 1)
+<span class="fc bfc" id="L313" title="All 2 branches covered.">        for (int row = 1; row &lt; rows; row++) {</span>
+<span class="fc" id="L314">            char tile = grid[row][cols-1];</span>
+<span class="pc bpc" id="L315" title="1 of 2 branches missed.">            if (check(tile)) {</span>
+<span class="fc" id="L316">                wallPositions.add(new PVector(cols - 1, row));</span>
+            }
+        }
+
+        // 处理下边界 (row = rows - 1)
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        for (int col = cols - 2; col &gt;= 0; col--) {</span>
+<span class="fc" id="L322">            char tile = grid[rows - 1][col];</span>
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">            if (check(tile)) {</span>
+<span class="fc" id="L324">                wallPositions.add(new PVector(col, rows - 1));</span>
+            }
+        }
+
+        // 处理左边界 (col = 0)
+<span class="fc bfc" id="L329" title="All 2 branches covered.">        for (int row = rows - 2; row &gt; 0; row--) {</span>
+<span class="fc" id="L330">            char tile = grid[row][0];</span>
+<span class="pc bpc" id="L331" title="1 of 2 branches missed.">            if (check(tile)) {</span>
+<span class="fc" id="L332">                wallPositions.add(new PVector(0, row));</span>
+            }
+        }
+
+<span class="fc" id="L336">        return wallPositions;  // 返回所有墙壁的坐标列表</span>
+    }
+
+    private boolean check(char tile) {
+<span class="pc bpc" id="L340" title="1 of 10 branches missed.">        return tile == 'X' || tile == '1' || tile == '2' || tile == '3' || tile == '4';</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

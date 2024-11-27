@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="inkball.InkBallTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2024-10-25T09:37:49" hostname="ubuntu" time="33.383">
+  <properties/>
+  <testcase name="RemoveTest()" classname="inkball.InkBallTest" time="12.289"/>
+  <testcase name="testKeyPressed()" classname="inkball.InkBallTest" time="3.025"/>
+  <testcase name="TimeoutTest()" classname="inkball.InkBallTest" time="3.014"/>
+  <testcase name="testPlayerLineCollision()" classname="inkball.InkBallTest" time="2.026"/>
+  <testcase name="testPlayerLineCreation()" classname="inkball.InkBallTest" time="2.011"/>
+  <testcase name="collisionTest()" classname="inkball.InkBallTest" time="11.015"/>
+  <system-out><![CDATA[1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+1
+1
+2
+2
+2
+3
+2
+3
+1
+2
+1
+2
+3
+1
+3
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

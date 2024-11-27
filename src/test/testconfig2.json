@@ -1,0 +1,27 @@
+{
+  "levels": [
+    {
+      "layout": "src/test/test1.txt",
+      "time": 1,
+      "spawn_interval": 10,
+      "score_increase_from_hole_capture_modifier": 1.0,
+      "score_decrease_from_wrong_hole_modifier": 1.0,
+      "balls": ["blue", "orange", "grey", "blue", "green", "yellow"]
+    }
+  ],
+  "score_increase_from_hole_capture": {
+    "grey": 70,
+    "orange": 50,
+    "blue": 50,
+    "green": 50,
+    "yellow": 100
+  },
+  "score_decrease_from_wrong_hole": {
+    "grey": 0,
+    "orange": 25,
+    "blue": 25,
+    "green": 25,
+    "yellow": 100
+  }
+}
+

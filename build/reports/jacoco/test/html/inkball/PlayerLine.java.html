@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerLine.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inkball</a> &gt; <a href="index.source.html" class="el_package">inkball</a> &gt; <span class="el_source">PlayerLine.java</span></div><h1>PlayerLine.java</h1><pre class="source lang-java linenums">package inkball;
+
+import processing.core.PApplet;
+import processing.core.PVector;
+
+import java.util.ArrayList;
+
+public class PlayerLine {
+    static class Line {
+        public PVector start, end;
+        public float lineThickness;
+
+<span class="fc" id="L13">        public Line(PVector start, PVector end, float lineThickness) {</span>
+<span class="fc" id="L14">            this.start = start;</span>
+<span class="fc" id="L15">            this.end = end;</span>
+<span class="fc" id="L16">            this.lineThickness = lineThickness;</span>
+<span class="fc" id="L17">        }</span>
+    }
+
+    private ArrayList&lt;Line&gt; lineSegments;
+    private PApplet p;
+<span class="fc" id="L22">    private final float lineThickness = 10;  // 线条的粗细</span>
+
+<span class="fc" id="L24">    public PlayerLine(PApplet p) {</span>
+<span class="fc" id="L25">        this.p = p;</span>
+<span class="fc" id="L26">        lineSegments = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L27">    }</span>
+
+    // 追加一个线段
+    public void addPoint(float mouseX, float mouseY, float pmouseX, float pmouseY) {
+<span class="fc" id="L31">        lineSegments.add(new Line(new PVector(mouseX, mouseY), new PVector(pmouseX, pmouseY), lineThickness));</span>
+<span class="fc" id="L32">    }</span>
+
+    // 显示所有的线段
+    public void display() {
+<span class="fc" id="L36">        p.stroke(0);</span>
+<span class="fc" id="L37">        p.strokeWeight(lineThickness);</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        for (Line segment : lineSegments) {</span>
+<span class="fc" id="L39">            p.line(segment.start.x, segment.start.y, segment.end.x, segment.end.y);</span>
+<span class="fc" id="L40">        }</span>
+<span class="fc" id="L41">    }</span>
+
+
+    // 获取线段列表，供外部类使用
+    public ArrayList&lt;Line&gt; getLineSegments() {
+<span class="fc" id="L46">        return lineSegments;</span>
+    }
+
+    // 检查是否与球碰撞
+    public boolean collidesWith(float mouseX, float mouseY, float radius) {
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        for (Line segment : lineSegments) {</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">            if (distToSegment(mouseX, mouseY, segment) &lt; radius) {</span>
+<span class="fc" id="L53">                return true;  // 发生碰撞</span>
+            }
+<span class="fc" id="L55">        }</span>
+<span class="fc" id="L56">        return false;  // 没有碰撞</span>
+    }
+
+    // 计算球到线段的最短距离
+     float distToSegment(float px, float py, Line segment) {
+<span class="fc" id="L61">        float vx = segment.end.x - segment.start.x;</span>
+<span class="fc" id="L62">        float vy = segment.end.y - segment.start.y;</span>
+<span class="fc" id="L63">        float wx = px - segment.start.x;</span>
+<span class="fc" id="L64">        float wy = py - segment.start.y;</span>
+
+<span class="fc" id="L66">        float c1 = wx * vx + wy * vy;</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (c1 &lt;= 0) return PApplet.dist(px, py, segment.start.x, segment.start.y);</span>
+
+<span class="fc" id="L69">        float c2 = vx * vx + vy * vy;</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (c2 &lt;= c1) return PApplet.dist(px, py, segment.end.x, segment.end.y);</span>
+
+<span class="fc" id="L72">        float b = c1 / c2;</span>
+<span class="fc" id="L73">        float pbx = segment.start.x + b * vx;</span>
+<span class="fc" id="L74">        float pby = segment.start.y + b * vy;</span>
+<span class="fc" id="L75">        return PApplet.dist(px, py, pbx, pby);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

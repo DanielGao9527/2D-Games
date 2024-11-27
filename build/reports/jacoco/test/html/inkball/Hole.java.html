@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Hole.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inkball</a> &gt; <a href="index.source.html" class="el_package">inkball</a> &gt; <span class="el_source">Hole.java</span></div><h1>Hole.java</h1><pre class="source lang-java linenums">package inkball;
+
+import processing.core.PApplet;
+import processing.core.PImage;
+
+public class Hole {
+    private float x, y;  // 洞的左上角坐标
+    private int color;   // 洞的颜色
+<span class="fc" id="L9">    private final int width = 64;  // 洞的宽度（64 像素）</span>
+<span class="fc" id="L10">    private final int height = 64; // 洞的高度（64 像素）</span>
+
+<span class="fc" id="L12">    public Hole(float x, float y, int color) {</span>
+<span class="fc" id="L13">        this.x = x;</span>
+<span class="fc" id="L14">        this.y = y;</span>
+<span class="fc" id="L15">        this.color = color;</span>
+<span class="fc" id="L16">    }</span>
+
+    // 检查球是否进入洞的范围（2×2 大小的洞）
+    public boolean isInside(float ballX, float ballY) {
+<span class="fc bfc" id="L20" title="All 8 branches covered.">        return ballX &gt; x &amp;&amp; ballX &lt; x + width &amp;&amp; ballY &gt; y &amp;&amp; ballY &lt; y + height;  // 2×2 格子的洞大小为 64×64</span>
+    }
+
+    // 返回洞的颜色
+    public int getColor() {
+<span class="fc" id="L25">        return color;</span>
+    }
+
+    // 获取洞的中心 X 坐标
+    public float getCenterX() {
+<span class="fc" id="L30">        return x + width / 2;</span>
+    }
+
+    // 获取洞的中心 Y 坐标
+    public float getCenterY() {
+<span class="fc" id="L35">        return y + height / 2;</span>
+    }
+
+    // 获取洞的宽度
+    public float getWidth() {
+<span class="nc" id="L40">        return width;</span>
+    }
+
+    // 获取洞的高度
+    public float getHeight() {
+<span class="nc" id="L45">        return height;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

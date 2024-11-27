@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>App.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inkball</a> &gt; <a href="index.source.html" class="el_package">inkball</a> &gt; <span class="el_source">App.java</span></div><h1>App.java</h1><pre class="source lang-java linenums">package inkball;
+
+import processing.core.PApplet;
+import processing.core.PImage;
+import processing.core.PVector;
+import processing.data.JSONArray;
+import processing.data.JSONObject;
+import processing.event.KeyEvent;
+import processing.event.MouseEvent;
+
+import java.util.*;
+
+public class App extends PApplet {
+
+    public static final int CELLSIZE = 32;
+    public static final int TOPBAR = 64; // 顶部区域高度
+<span class="fc" id="L17">    public static int WIDTH = 576;</span>
+<span class="fc" id="L18">    public static int HEIGHT = 640;  // 保持640的窗口高度</span>
+<span class="fc" id="L19">    public static final int BOARD_WIDTH = WIDTH / CELLSIZE;</span>
+    public static final int BOARD_HEIGHT = 20;
+
+    public static final int FPS = 30;
+
+    public String configPath;
+    JSONObject config;
+
+<span class="fc" id="L27">    private HashMap&lt;String, PImage&gt; sprites = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L28">    public static Random random = new Random();</span>
+<span class="fc" id="L29">    private Random vrandom = new Random();</span>
+<span class="fc" id="L30">    PImage[] ballImages = new PImage[5];</span>
+<span class="fc" id="L31">    private PImage[] walls = new PImage[7];</span>
+<span class="fc" id="L32">    private PImage[] holes = new PImage[5];</span>
+    PImage tile;  // 背景图片
+    PImage entrypoint ;
+    String layout;
+    JSONArray ballColorsArray;
+    JSONArray levels;
+
+    List&lt;Ball&gt; balls;
+    LinkedList&lt;String&gt; ballQueue;
+    private LinkedList&lt;String&gt; ballQueueview;
+    List&lt;PlayerLine&gt; playerLines; // 玩家绘制的线条
+    Level level;
+<span class="fc" id="L44">    List&lt;Ball&gt; ballsToRemove = new ArrayList&lt;&gt;();  // 要移除的球</span>
+<span class="fc" id="L45">    boolean isPaused = false;</span>
+<span class="fc" id="L46">    boolean levelComplete = false;</span>
+<span class="fc" id="L47">    boolean gameComplete = false;</span>
+<span class="fc" id="L48">    int score = 0;</span>
+    int timer ; // 初始计时器（单位：秒）
+    int time;
+<span class="fc" id="L51">    float spawnTimer = 0; // 计时器用于控制球的生成</span>
+    float spawnInterval;
+    private List&lt;PVector&gt; wallPositions;  // 保存墙体的位置列表
+<span class="fc" id="L54">    private int yellowTile1Index = 0;     // 第一个黄色砖块在墙体上的位置索引</span>
+<span class="fc" id="L55">    private int yellowTile2Index = 0;</span>
+<span class="fc" id="L56">    private int imageOffset=0;</span>
+<span class="fc" id="L57">    int currentLevelIndex = 0;</span>
+<span class="fc" id="L58">    private int levelStartingScore = 0;</span>
+<span class="fc" id="L59">    private float scoreIncreaseModifier = 1.0f;  // 加分修正值</span>
+<span class="fc" id="L60">    private float scoreDecreaseModifier = 1.0f;</span>
+
+    // 分数规则
+<span class="fc" id="L63">    private Map&lt;Integer, Integer&gt; scoreIncreaseByColor = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L64">    private Map&lt;Integer, Integer&gt; scoreDecreaseByColor = new HashMap&lt;&gt;();</span>
+
+    // 构造方法，设置配置文件路径
+<span class="fc" id="L67">    public App() {</span>
+<span class="fc" id="L68">        this.configPath = &quot;config.json&quot;;</span>
+<span class="fc" id="L69">    }</span>
+
+<span class="fc" id="L71">    public App(String config,long seed) {</span>
+<span class="fc" id="L72">        this.configPath = config;</span>
+<span class="fc" id="L73">        vrandom.setSeed(seed);</span>
+<span class="fc" id="L74">    }</span>
+
+    @Override
+    public void settings() {
+<span class="fc" id="L78">        size(WIDTH, HEIGHT);  // 设置窗口大小</span>
+<span class="fc" id="L79">    }</span>
+
+    public void loadBallQueue(JSONArray ballColors) {
+<span class="fc" id="L82">        ballQueue = new LinkedList&lt;&gt;();</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        for (int i = 0; i &lt; ballColors.size(); i++) {</span>
+<span class="fc" id="L84">            ballQueue.add(ballColors.getString(i));  // 添加每个颜色到队列</span>
+        }
+<span class="fc" id="L86">    }</span>
+
+    @Override
+    public void setup() {
+<span class="fc" id="L90">        frameRate(FPS);</span>
+
+        // 加载图片资源
+<span class="fc" id="L93">        tile = getSprite(&quot;tile&quot;);  // 背景图片</span>
+<span class="fc" id="L94">        entrypoint = getSprite(&quot;entrypoint&quot;);  // 球的生成点图片</span>
+
+        // 加载每种颜色的球、洞、墙
+<span class="fc" id="L97">        ballImages = new PImage[5];</span>
+<span class="fc" id="L98">        holes = new PImage[5];</span>
+<span class="fc" id="L99">        walls = new PImage[7];</span>
+
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        for (int i = 0; i &lt; 5; i++) {</span>
+<span class="fc" id="L102">            ballImages[i] = getSprite(&quot;ball&quot; + i);</span>
+<span class="fc" id="L103">            holes[i] = getSprite(&quot;hole&quot; + i);</span>
+<span class="fc" id="L104">            walls[i] = getSprite(&quot;wall&quot; + i);</span>
+        }
+<span class="fc" id="L106">        walls[5] = getSprite(&quot;wall&quot; + 5);</span>
+<span class="fc" id="L107">        walls[6] = getSprite(&quot;wall&quot; + 6);</span>
+        // 初始化关卡
+<span class="fc" id="L109">        config = loadJSONObject(configPath);</span>
+<span class="fc" id="L110">        levels = config.getJSONArray(&quot;levels&quot;);</span>
+
+<span class="fc" id="L112">        loadLevel(currentLevelIndex);</span>
+<span class="fc" id="L113">    }</span>
+
+    void loadLevel(int levelIndex) {
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        if (levelIndex &gt;= levels.size()) {</span>
+<span class="nc" id="L117">            gameComplete = true;  // 所有关卡完成</span>
+<span class="nc" id="L118">            return;</span>
+        }
+<span class="fc" id="L120">        levelStartingScore = score;</span>
+
+<span class="fc" id="L122">        JSONObject scoreIncrease = config.getJSONObject(&quot;score_increase_from_hole_capture&quot;);</span>
+<span class="fc" id="L123">        scoreIncreaseByColor.put(0, scoreIncrease.getInt(&quot;grey&quot;));</span>
+<span class="fc" id="L124">        scoreIncreaseByColor.put(1, scoreIncrease.getInt(&quot;orange&quot;));</span>
+<span class="fc" id="L125">        scoreIncreaseByColor.put(2, scoreIncrease.getInt(&quot;blue&quot;));</span>
+<span class="fc" id="L126">        scoreIncreaseByColor.put(3, scoreIncrease.getInt(&quot;green&quot;));</span>
+<span class="fc" id="L127">        scoreIncreaseByColor.put(4, scoreIncrease.getInt(&quot;yellow&quot;));</span>
+
+<span class="fc" id="L129">        JSONObject scoreDecrease = config.getJSONObject(&quot;score_decrease_from_wrong_hole&quot;);</span>
+<span class="fc" id="L130">        scoreDecreaseByColor.put(0, scoreDecrease.getInt(&quot;grey&quot;));</span>
+<span class="fc" id="L131">        scoreDecreaseByColor.put(1, scoreDecrease.getInt(&quot;orange&quot;));</span>
+<span class="fc" id="L132">        scoreDecreaseByColor.put(2, scoreDecrease.getInt(&quot;blue&quot;));</span>
+<span class="fc" id="L133">        scoreDecreaseByColor.put(3, scoreDecrease.getInt(&quot;green&quot;));</span>
+<span class="fc" id="L134">        scoreDecreaseByColor.put(4, scoreDecrease.getInt(&quot;yellow&quot;));</span>
+
+<span class="fc" id="L136">        JSONObject currentLevel = levels.getJSONObject(levelIndex);</span>
+<span class="fc" id="L137">        layout = currentLevel.getString(&quot;layout&quot;);</span>
+
+<span class="fc" id="L139">        scoreIncreaseModifier = (float) currentLevel.getDouble(&quot;score_increase_from_hole_capture_modifier&quot;);</span>
+<span class="fc" id="L140">        scoreDecreaseModifier = (float) currentLevel.getDouble(&quot;score_decrease_from_wrong_hole_modifier&quot;);</span>
+
+<span class="fc" id="L142">        time = currentLevel.getInt(&quot;time&quot;);</span>
+<span class="fc" id="L143">        timer = time;</span>
+//        timer = 10;
+<span class="fc" id="L145">        spawnInterval = currentLevel.getInt(&quot;spawn_interval&quot;);</span>
+<span class="fc" id="L146">        spawnTimer = spawnInterval;</span>
+<span class="fc" id="L147">        ballColorsArray = config.getJSONArray(&quot;levels&quot;).getJSONObject(levelIndex).getJSONArray(&quot;balls&quot;);</span>
+
+<span class="fc" id="L149">        balls = new ArrayList&lt;&gt;();</span>
+        // 传递背景、墙壁、洞和生成点图片以及球的图片
+<span class="fc" id="L151">        level = new Level(this, layout, walls, holes, tile, entrypoint, ballImages);</span>
+
+        // 初始化玩家绘制线条
+<span class="fc" id="L154">        playerLines = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L155">        loadBallQueue(ballColorsArray);  // 初始化球队列</span>
+
+<span class="fc" id="L157">        wallPositions = level.getWallPositions(); // 获取墙体的位置坐标</span>
+
+        // 初始时让黄色砖块从墙体的两个位置开始
+<span class="fc" id="L160">        yellowTile1Index = 0;</span>
+<span class="fc" id="L161">        yellowTile2Index = wallPositions.size()/2;</span>
+        // 生成初始球
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">        if(!ballQueue.isEmpty()) {</span>
+<span class="fc" id="L164">            spawnBall();</span>
+        }
+<span class="fc" id="L166">        ballQueueview = ballQueue;</span>
+<span class="fc" id="L167">        levelComplete = false;  // 重置关卡完成状态</span>
+<span class="fc" id="L168">        imageOffset = 0;</span>
+<span class="fc" id="L169">    }</span>
+
+    // 获取图像资源
+    public PImage getSprite(String s) {
+<span class="fc" id="L173">        PImage result = sprites.get(s);</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (result == null) {</span>
+<span class="fc" id="L175">            result = loadImage(this.getClass().getResource(s + &quot;.png&quot;).getPath().replace(&quot;%20&quot;, &quot; &quot;));</span>
+<span class="fc" id="L176">            sprites.put(s, result);</span>
+        }
+<span class="fc" id="L178">        return result;</span>
+    }
+
+    // 键盘按下事件处理
+    @Override
+    public void keyPressed(KeyEvent event) {
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        if (event.getKey() == ' ') {</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">            isPaused = !isPaused; // 暂停或恢复游戏</span>
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        } else if (event.getKey() == 'r') {</span>
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">            if (gameComplete) {</span>
+                // 如果游戏完成，按 'r' 重新开始从第一个关卡
+<span class="nc" id="L189">                currentLevelIndex = 0;</span>
+<span class="nc" id="L190">                levelStartingScore = 0;</span>
+<span class="nc" id="L191">                score = 0;</span>
+<span class="nc" id="L192">                gameComplete = false;</span>
+<span class="nc" id="L193">                levelComplete=false;</span>
+<span class="nc" id="L194">                loadLevel(currentLevelIndex);</span>
+            }
+<span class="fc" id="L196">            restartGame(); // 重启游戏</span>
+        }
+<span class="fc" id="L198">    }</span>
+
+    // 鼠标按下事件处理
+    @Override
+    public void mousePressed() {
+<span class="pc bpc" id="L203" title="2 of 4 branches missed.">        if (!levelComplete &amp;&amp; mouseButton == LEFT) {</span>
+<span class="fc" id="L204">            playerLines.add(new PlayerLine(this));  // 创建新的线条</span>
+        }
+<span class="fc" id="L206">    }</span>
+
+    // 鼠标拖拽事件，绘制线条
+    @Override
+    public void mouseDragged() {
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">        if (!levelComplete) {</span>
+            // 如果游戏暂停，也允许划线
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">            if (mouseButton == LEFT) {</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">                if (!playerLines.isEmpty()) {</span>
+                    // 向最后一条线添加新点
+<span class="fc" id="L216">                    PlayerLine currentLine = playerLines.get(playerLines.size() - 1);</span>
+<span class="fc" id="L217">                    currentLine.addPoint(mouseX, mouseY, pmouseX, pmouseY);</span>
+                }
+            }
+        }
+<span class="fc" id="L221">    }</span>
+
+    // 鼠标释放事件，结束绘制线条
+    @Override
+    public void mouseReleased() {
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">        if (mouseButton == RIGHT) {</span>
+            // 右键点击时移除碰撞的线条
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">            for (int i = 0; i &lt; playerLines.size(); i++) {</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">                if (playerLines.get(i).collidesWith(mouseX, mouseY, 5)) {</span>
+<span class="fc" id="L230">                    playerLines.remove(i);</span>
+<span class="fc" id="L231">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L235">    }</span>
+
+
+    // 游戏绘制逻辑
+    @Override
+    public void draw() {
+<span class="fc" id="L241">        background(255);</span>
+
+        // 绘制顶部计分栏
+<span class="fc" id="L244">        drawTopBar();</span>
+<span class="fc" id="L245">        level.draw();</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">        for (Ball ball : balls) {</span>
+<span class="fc" id="L247">            ball.display();</span>
+<span class="fc" id="L248">        }</span>
+<span class="fc bfc" id="L249" title="All 4 branches covered.">        if (timer &gt; 0 &amp;&amp; !levelComplete) {</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">            if (!isPaused) {</span>
+
+<span class="fc bfc" id="L252" title="All 2 branches covered.">                for (Ball ball : balls) {</span>
+<span class="fc" id="L253">                    ball.move(playerLines);</span>
+<span class="fc" id="L254">                    int k=ball.shouldBeRemoved();</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">                    if (k == 1) {</span>
+<span class="fc" id="L256">                        ballsToRemove.add(ball);  // 将需要移除的球放入待移除列表</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L258">                        ballsToRemove.add(ball);  // 球进入错误洞，准备移除</span>
+<span class="fc" id="L259">                        ballQueue.add(getColorName(ball.getColorIndex()));</span>
+                    }
+<span class="fc" id="L261">                }</span>
+
+                // 移除球
+<span class="fc" id="L264">                balls.removeAll(ballsToRemove);</span>
+
+<span class="fc bfc" id="L266" title="All 2 branches covered.">                if (frameCount % 3 == 0) {</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">                    if (!balls.isEmpty()) {</span>
+<span class="fc" id="L268">                        spawnTimer -= 0.1;  //</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">                        if (spawnTimer &lt;= 0) {</span>
+<span class="fc" id="L270">                            spawnBall();</span>
+<span class="fc" id="L271">                            spawnTimer = spawnInterval;  // 重置生成计时器</span>
+                        }
+                    } else {
+<span class="fc" id="L274">                        spawnBall();</span>
+<span class="fc" id="L275">                        spawnTimer = spawnInterval;  // 场上有球时重置生成计时器</span>
+                    }
+                }
+
+                // 更新计时器
+<span class="pc bpc" id="L280" title="1 of 4 branches missed.">                if (frameCount % FPS == 0 &amp;&amp; timer &gt; 0) {</span>
+<span class="fc" id="L281">                    timer--;</span>
+                }
+
+            }
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            if (!ballQueue.isEmpty()) {</span>
+<span class="fc" id="L286">                textAlign(RIGHT, CENTER);</span>
+<span class="fc" id="L287">                textSize(20);</span>
+<span class="fc" id="L288">                text(nf(spawnTimer, 1, 1), 270, TOPBAR / 2);</span>
+            }
+<span class="fc bfc" id="L290" title="All 2 branches covered.">            for (PlayerLine line : playerLines) {</span>
+<span class="fc" id="L291">                line.display();</span>
+<span class="fc" id="L292">            }</span>
+<span class="fc" id="L293">            checkGameEnd();</span>
+<span class="fc bfc" id="L294" title="All 4 branches covered.">        } else if (timer &lt;= 0 &amp;&amp; !levelComplete){</span>
+<span class="fc" id="L295">            textSize(16);</span>
+<span class="fc" id="L296">            textAlign(CENTER, CENTER);</span>
+<span class="fc" id="L297">            fill(0);</span>
+<span class="fc" id="L298">            text(&quot;=== TIME'S UP ===&quot;, width / 2 + 80, TOPBAR / 2);</span>
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">        } else if (levelComplete){</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">            if (frameCount % 2 == 0) {</span>
+                // 更新分数和计时器
+<span class="fc bfc" id="L302" title="All 2 branches covered.">                if (timer &gt; 0) {</span>
+<span class="fc" id="L303">                    score += 1; // 每帧增加1分</span>
+<span class="fc" id="L304">                    timer--;    // 剩余时间减少</span>
+
+                // 移动黄色砖块
+<span class="fc" id="L307">                moveYellowTiles();</span>
+                }
+            }
+<span class="fc" id="L310">            drawYellowTiles();</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">            if(timer&lt;=0){</span>
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">                if (currentLevelIndex &lt; levels.size() - 1) {</span>
+                    // 如果还有下一关，加载下一关
+<span class="nc" id="L314">                    currentLevelIndex++;</span>
+<span class="nc" id="L315">                    loadLevel(currentLevelIndex);</span>
+<span class="nc" id="L316">                    levelComplete=false;</span>
+                } else {
+
+<span class="fc" id="L319">                    gameComplete = true;</span>
+
+                }
+            }
+        }
+
+<span class="fc" id="L325">    }</span>
+
+    // 绘制顶部区域 (TOPBAR)
+    private void drawTopBar() {
+<span class="fc" id="L329">        fill(200);  // 灰色背景</span>
+<span class="fc" id="L330">        rect(0, 0, width, TOPBAR);  // 顶部区域</span>
+
+<span class="fc" id="L332">        int boxWidth = 210;  // 设置框的宽度</span>
+<span class="fc" id="L333">        int boxHeight = TOPBAR - 10;  // 框的高度比 topbar 略小</span>
+<span class="fc" id="L334">        fill(0);  // 白色填充</span>
+<span class="fc" id="L335">        rect(10, 5, boxWidth, boxHeight);  // 左上角的框</span>
+
+        // 在框内绘制 ballQueue 中的球图像
+<span class="fc" id="L338">        int ballSize = 32;  // 每个球的大小</span>
+<span class="fc" id="L339">        int padding = 8;  // 球与球之间的间隔</span>
+<span class="fc" id="L340">        int xPos = 20- imageOffset ;// 从框内左侧开始绘制，受 imageOffset 影响</span>
+<span class="fc" id="L341">        int yPos = (TOPBAR - ballSize) / 2;  // 球在框内的垂直居中位置</span>
+<span class="fc" id="L342">        int count=0;</span>
+<span class="fc" id="L343">        LinkedList&lt;String&gt; q=ballQueueview;</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">        for (String ballColor : q) {</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">            if (count &lt; 5) {</span>
+<span class="pc bpc" id="L346" title="1 of 4 branches missed.">                if(xPos &gt;= 20 &amp;&amp; xPos&lt;=180) {</span>
+<span class="fc" id="L347">                    int colorIndex = getColorIndex(ballColor);  // 获取颜色索引</span>
+<span class="fc" id="L348">                    PImage ballImage = ballImages[colorIndex];  // 获取对应的球图像</span>
+
+<span class="fc" id="L350">                    image(ballImage, xPos, yPos, ballSize, ballSize);  // 绘制球的图像</span>
+<span class="fc" id="L351">                    count++;</span>
+                }
+<span class="fc" id="L353">                    xPos += ballSize + padding;  // 更新下一个球的 x 位</span>
+            }
+<span class="fc" id="L355">        }</span>
+
+<span class="pc bpc" id="L357" title="1 of 4 branches missed.">        if (!ballQueue.isEmpty() &amp;&amp; !isPaused) {</span>
+            // 每帧减少 imageOffset，使球向左移动
+<span class="fc bfc" id="L359" title="All 2 branches covered.">            if(imageOffset &lt; 0) imageOffset += 1;</span>
+        }
+
+<span class="fc" id="L362">        fill(0);  // 黑色字体</span>
+<span class="fc" id="L363">        textSize(20);</span>
+<span class="fc" id="L364">        textAlign(CENTER, CENTER);</span>
+
+        // 判断是否显示游戏状态文本（例如暂停或关卡完成）
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">        if (isPaused) {</span>
+<span class="nc" id="L368">            text(&quot;*** PAUSED ***&quot;, width / 2 +70, TOPBAR / 2);  // 显示暂停状态</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        } else if (gameComplete){</span>
+<span class="fc" id="L370">            textSize(16);</span>
+<span class="fc" id="L371">            textAlign(CENTER, CENTER);</span>
+<span class="fc" id="L372">            fill(0);</span>
+<span class="fc" id="L373">            text(&quot;=== ENDED ===&quot;, width / 2 + 80, TOPBAR / 2);</span>
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        }else if (levelComplete) {</span>
+<span class="fc" id="L375">            textSize(13);</span>
+<span class="fc" id="L376">            textAlign(CENTER, CENTER);</span>
+<span class="fc" id="L377">            text(&quot;=== LEVEL COMPLETE ===&quot;, width / 2 +80, TOPBAR / 2);  // 显示关卡完成状态</span>
+        }
+
+        // 在右侧显示计时器和分数
+<span class="fc" id="L381">        textAlign(RIGHT, CENTER);</span>
+<span class="fc" id="L382">        textSize(20);</span>
+<span class="fc" id="L383">        text(&quot;Score: &quot; + score, width - 10, TOPBAR / 3);</span>
+
+// Display timer below the score
+<span class="fc" id="L386">        text(&quot;Time: &quot; + timer, width - 10, TOPBAR * 2 / 3);</span>
+<span class="fc" id="L387">    }</span>
+
+    private void moveYellowTiles() {
+        // 每次黄色砖块沿着墙体移动一个位置
+<span class="fc" id="L391">        yellowTile1Index = (yellowTile1Index + 1) % wallPositions.size();</span>
+<span class="fc" id="L392">        yellowTile2Index = (yellowTile2Index + 1) % wallPositions.size();</span>
+<span class="fc" id="L393">    }</span>
+
+    private void drawYellowTiles() {
+        // 获取当前黄色砖块在墙体上的位置
+<span class="fc" id="L397">        PVector yellowTile1Pos = wallPositions.get(yellowTile1Index);</span>
+<span class="fc" id="L398">        PVector yellowTile2Pos = wallPositions.get(yellowTile2Index);</span>
+
+        // 绘制第一个黄色砖块 (使用 wall4 图像)
+<span class="fc" id="L401">        image(walls[4], yellowTile1Pos.x * CELLSIZE, yellowTile1Pos.y * CELLSIZE + TOPBAR, CELLSIZE, CELLSIZE);</span>
+
+        // 绘制第二个黄色砖块 (使用 wall4 图像)
+<span class="fc" id="L404">        image(walls[4], yellowTile2Pos.x * CELLSIZE, yellowTile2Pos.y * CELLSIZE + TOPBAR, CELLSIZE, CELLSIZE);</span>
+<span class="fc" id="L405">    }</span>
+
+    // 重新开始游戏
+    void restartGame() {
+<span class="fc" id="L409">        score = levelStartingScore;</span>
+<span class="fc" id="L410">        balls.clear();</span>
+<span class="fc" id="L411">        playerLines.clear();</span>
+<span class="fc" id="L412">        timer = time;  // 重置计时器</span>
+<span class="fc" id="L413">        levelComplete = false;  // 取消关卡完成状态</span>
+<span class="fc" id="L414">        spawnTimer = spawnInterval;  // 重置生成计时器</span>
+<span class="fc" id="L415">        loadBallQueue(ballColorsArray);</span>
+<span class="fc" id="L416">        imageOffset=0;</span>
+<span class="fc" id="L417">        level = new Level(this, layout, walls, holes, tile, entrypoint, ballImages); // 重载关卡</span>
+<span class="pc bpc" id="L418" title="1 of 2 branches missed.">        if(!ballQueue.isEmpty()) {</span>
+<span class="fc" id="L419">            spawnBall();</span>
+        }
+<span class="fc" id="L421">        ballQueueview = ballQueue;</span>
+<span class="fc" id="L422">    }</span>
+
+    // 检查游戏是否结束
+    private void checkGameEnd() {
+<span class="fc bfc" id="L426" title="All 4 branches covered.">        if (balls.isEmpty() &amp;&amp; ballQueue.isEmpty()) {</span>
+<span class="fc" id="L427">            levelComplete = true;</span>
+            //noLoop(); // 暂停游戏
+        }
+<span class="fc" id="L430">    }</span>
+
+    // 处理球与洞的碰撞，并根据结果调整分数
+    public void updateScore(int ballColor, boolean correctHole) {
+        int scoreChange;
+<span class="fc bfc" id="L435" title="All 2 branches covered.">        if (correctHole) {</span>
+<span class="fc" id="L436">            scoreChange = Math.round(scoreIncreaseByColor.get(ballColor) * scoreIncreaseModifier);</span>
+        } else {
+<span class="fc" id="L438">            scoreChange = -Math.round(scoreDecreaseByColor.get(ballColor) * scoreDecreaseModifier);</span>
+// 颜色不匹配
+        }
+<span class="fc" id="L441">        score += scoreChange;</span>
+<span class="fc" id="L442">    }</span>
+
+    public void addBall(Ball ball) {
+<span class="fc" id="L445">        balls.add(ball); // 将球添加到 balls 列表中</span>
+<span class="fc" id="L446">    }</span>
+
+
+
+    public void spawnBall() {
+
+<span class="pc bpc" id="L452" title="1 of 2 branches missed.">        if (ballQueue.isEmpty()) {</span>
+<span class="nc" id="L453">            return;</span>
+        }
+
+        // 从队列中取出第一个颜色
+<span class="fc" id="L457">        String colorName = ballQueue.poll();</span>
+
+<span class="fc" id="L459">        imageOffset-=40;</span>
+<span class="fc" id="L460">        int colorIndex = getColorIndex(colorName);</span>
+
+        // 获取随机生成点
+<span class="fc" id="L463">        PVector spawnPoint = level.getRandomSpawnPoint();</span>
+
+        // 生成随机速度
+<span class="fc bfc" id="L466" title="All 2 branches covered.">        float vx = vrandom.nextFloat() &lt; 0.5 ? 2 : -2;</span>
+<span class="fc bfc" id="L467" title="All 2 branches covered.">        float vy = vrandom.nextFloat() &lt; 0.5 ? 2 : -2;</span>
+//        System.out.println(vrandom.nextFloat());
+
+        // 创建并添加新球
+<span class="fc" id="L471">        Ball newBall = new Ball(this, spawnPoint.x, spawnPoint.y, vx, vy, ballImages[colorIndex], level, colorIndex, ballImages);</span>
+<span class="fc" id="L472">        balls.add(newBall);</span>
+<span class="fc" id="L473">    }</span>
+
+
+    String getColorName(int colorIndex) {
+<span class="pc bpc" id="L477" title="3 of 6 branches missed.">        switch (colorIndex) {</span>
+<span class="nc" id="L478">            case 0: return &quot;grey&quot;;</span>
+<span class="fc" id="L479">            case 1: return &quot;orange&quot;;</span>
+<span class="nc" id="L480">            case 2: return &quot;blue&quot;;</span>
+<span class="fc" id="L481">            case 3: return &quot;green&quot;;</span>
+<span class="fc" id="L482">            case 4: return &quot;yellow&quot;;</span>
+<span class="nc" id="L483">            default: return &quot;grey&quot;;  // 默认灰色</span>
+        }
+    }
+
+    public int getColorIndex(String colorName) {
+<span class="pc bpc" id="L488" title="1 of 6 branches missed.">        switch (colorName.toLowerCase()) {</span>
+            case &quot;grey&quot;:
+<span class="fc" id="L490">                return 0;</span>
+            case &quot;orange&quot;:
+<span class="fc" id="L492">                return 1;</span>
+            case &quot;blue&quot;:
+<span class="fc" id="L494">                return 2;</span>
+            case &quot;green&quot;:
+<span class="fc" id="L496">                return 3;</span>
+            case &quot;yellow&quot;:
+<span class="fc" id="L498">                return 4;</span>
+            default:
+<span class="nc" id="L500">                return 0; // 默认灰色</span>
+        }
+    }
+
+
+
+    public static void main(String[] args) {
+<span class="nc" id="L507">        PApplet.main(&quot;inkball.App&quot;);</span>
+<span class="nc" id="L508">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

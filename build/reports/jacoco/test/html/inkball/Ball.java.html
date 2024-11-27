@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Ball.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">inkball</a> &gt; <a href="index.source.html" class="el_package">inkball</a> &gt; <span class="el_source">Ball.java</span></div><h1>Ball.java</h1><pre class="source lang-java linenums">package inkball;
+
+import processing.core.PApplet;
+import processing.core.PImage;
+import processing.core.PVector;
+
+import java.util.Iterator;
+import java.util.List;
+
+public class Ball {
+    private PApplet p;
+    private Level level; // 引入 Level 类，用于墙壁检测
+    private float x, y;   // 球的位置
+    private float vx, vy; // 球的速度
+    private PImage image;
+    private PImage[] ballImages; // 球的图片
+    private int colorIndex;
+<span class="fc" id="L18">    private float radius = 16;</span>
+<span class="fc" id="L19">    private boolean isBeingRemoved = false; // 标记球是否正在被移除</span>
+<span class="fc" id="L20">    private float removeAnimationTime = 0;  // 用于记录移除动画的时间</span>
+<span class="fc" id="L21">    private final float maxRemoveAnimationTime = 16;</span>
+    private boolean correct;
+
+    // 构造方法
+<span class="fc" id="L25">    public Ball(PApplet p, float x, float y, float vx, float vy, PImage image, Level level,int colorIndex,PImage[] ballImages) {</span>
+<span class="fc" id="L26">        this.p = p;</span>
+<span class="fc" id="L27">        this.x = x;</span>
+<span class="fc" id="L28">        this.y = y;</span>
+<span class="fc" id="L29">        this.vx = vx;</span>
+<span class="fc" id="L30">        this.vy = vy;</span>
+<span class="fc" id="L31">        this.image = image;</span>
+<span class="fc" id="L32">        this.level = level; // 传入 Level 对象</span>
+<span class="fc" id="L33">        this.colorIndex = colorIndex;</span>
+<span class="fc" id="L34">        this.ballImages = ballImages;</span>
+<span class="fc" id="L35">    }</span>
+
+    // 移动球的位置并检测墙壁碰撞
+    public void move(List&lt;PlayerLine&gt; playerLines) {
+
+
+<span class="fc" id="L41">        checkWallCollision();</span>
+
+        // 检查是否碰到边界并反弹
+//        if (x &lt; radius || x &gt; p.width - radius) {
+//            vx = -vx;
+//        }
+//        if (y &lt; radius + 64 || y &gt; p.height - radius) {
+//            vy = -vy;
+//        }
+<span class="fc" id="L50">        Iterator&lt;PlayerLine&gt; iterator = playerLines.iterator();</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        while (iterator.hasNext()) {</span>
+<span class="fc" id="L52">            PlayerLine line = iterator.next();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">            if (collideWithPlayerLine(line)) {</span>
+<span class="fc" id="L54">                iterator.remove(); // 安全移除整条线</span>
+            }
+<span class="fc" id="L56">        }</span>
+
+<span class="fc" id="L58">        fixBallPositionIfStuck();</span>
+<span class="fc" id="L59">    }</span>
+
+    private void fixBallPositionIfStuck() {
+        // 检查球是否卡在墙内
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (level.isWall(x - radius, y)) {</span>
+<span class="fc" id="L64">            x += 2;  // 向右移动球，直到不再与墙重叠</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        } else if (level.isWall(x + radius, y)) {</span>
+<span class="fc" id="L66">            x -= 2;  // 向左移动球</span>
+        }
+
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (level.isWall(x, y - radius)) {</span>
+<span class="fc" id="L70">            y += 2;  // 向下移动球</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        } else if (level.isWall(x, y + radius)) {</span>
+<span class="nc" id="L72">            y -= 2;  // 向上移动球</span>
+        }
+<span class="fc" id="L74">    }</span>
+
+    private boolean checkCircularWallCollision(float ballX, float ballY) {
+        // 遍历球周围的多个角度，检测是否与墙壁发生碰撞
+<span class="fc" id="L78">        int numPoints = 16;  // 将球的周围划分为 16 个点来检测</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        for (int i = 0; i &lt; numPoints; i++) {</span>
+<span class="fc" id="L80">            float angle = PApplet.TWO_PI * i / numPoints;  // 计算角度</span>
+<span class="fc" id="L81">            float checkX = ballX + radius * PApplet.cos(angle);  // 计算沿圆周的 x 坐标</span>
+<span class="fc" id="L82">            float checkY = ballY + radius * PApplet.sin(angle);  // 计算沿圆周的 y 坐标</span>
+
+            // 如果该点与墙壁发生碰撞，则返回 true
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if (level.isWall(checkX, checkY)) {</span>
+<span class="fc" id="L86">                level.checkBrickCollision(checkX, checkY, colorIndex);</span>
+<span class="fc" id="L87">                return true;</span>
+            }
+        }
+<span class="fc" id="L90">        return false;  // 没有碰撞</span>
+    }
+
+    void checkWallCollision() {
+
+<span class="fc" id="L95">        int steps = 5;  // 细分为 10 步</span>
+<span class="fc" id="L96">        float stepX = vx / steps;</span>
+<span class="fc" id="L97">        float stepY = vy / steps;</span>
+
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        for (int i = 0; i &lt; steps; i++) {</span>
+            // 使用圆形碰撞检测
+<span class="fc bfc" id="L101" title="All 2 branches covered.">            if (!checkCircularWallCollision(x + stepX, y)) {</span>
+<span class="fc" id="L102">                x += stepX;  // 更新 x 位置</span>
+            } else {
+<span class="fc" id="L104">                vx = -vx;  // 水平反弹</span>
+<span class="fc" id="L105">                break;</span>
+            }
+
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            if (!checkCircularWallCollision(x, y + stepY)) {</span>
+<span class="fc" id="L109">                y += stepY;  // 更新 y 位置</span>
+            } else {
+<span class="fc" id="L111">                vy = -vy;  // 垂直反弹</span>
+<span class="fc" id="L112">                break;</span>
+            }
+        }
+//        if (level.checkWall5Collision(x + vx - radius, y + vy, colorIndex)) {
+//            // 如果检测到碰撞，停止后续的碰撞检测
+//        } else if (level.checkWall5Collision(x + vx + radius, y + vy, colorIndex)) {
+//            // 如果没有发生碰撞，再检查下一个方向
+//        } else if (level.checkWall5Collision(x + vx, y + vy - radius, colorIndex)) {
+//            // 再检查另一个方向
+//        } else if (level.checkWall5Collision(x + vx, y + vy + radius, colorIndex)) {
+//            // 最后检查这个方向
+//        }
+
+<span class="fc" id="L125">        int leftColor = level.getWallColor(x + vx - radius, y + vy);</span>
+<span class="fc" id="L126">        int rightColor = level.getWallColor(x + vx + radius, y + vy);</span>
+<span class="fc" id="L127">        int topColor = level.getWallColor(x + vx, y + vy - radius);</span>
+<span class="fc" id="L128">        int bottomColor = level.getWallColor(x + vx, y + vy + radius);</span>
+
+        // 检查是否碰到有颜色的墙，并优先更新颜色
+<span class="pc bpc" id="L131" title="1 of 4 branches missed.">        if (leftColor &gt;= 1 &amp;&amp; leftColor &lt;= 4) {</span>
+<span class="fc" id="L132">            colorIndex = leftColor;</span>
+<span class="fc" id="L133">            image = ballImages[colorIndex];</span>
+<span class="fc bfc" id="L134" title="All 4 branches covered.">        } else if (rightColor &gt;= 1 &amp;&amp; rightColor &lt;= 4) {</span>
+<span class="fc" id="L135">            colorIndex = rightColor;</span>
+<span class="fc" id="L136">            image = ballImages[colorIndex];</span>
+<span class="fc bfc" id="L137" title="All 4 branches covered.">        } else if (topColor &gt;= 1 &amp;&amp; topColor &lt;= 4) {</span>
+<span class="fc" id="L138">            colorIndex = topColor;</span>
+<span class="fc" id="L139">            image = ballImages[colorIndex];</span>
+<span class="fc bfc" id="L140" title="All 4 branches covered.">        } else if (bottomColor &gt;= 1 &amp;&amp; bottomColor &lt;= 4) {</span>
+<span class="fc" id="L141">            colorIndex = bottomColor;</span>
+<span class="fc" id="L142">            image = ballImages[colorIndex];</span>
+        }
+
+
+        // 同时处理墙壁的反弹
+//        if (level.isWall(x - radius, y) || level.isWall(x + radius, y)) {
+//            vx = -vx; // 水平反弹
+//        }
+//        if (level.isWall(x, y - radius) || level.isWall(x, y + radius)) {
+//            vy = -vy; // 垂直反弹
+//        }
+<span class="fc" id="L153">    }</span>
+
+    boolean collideWithPlayerLine(PlayerLine line) {
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        for (PlayerLine.Line segment : line.getLineSegments()) {</span>
+<span class="fc" id="L157">            PVector closest = getClosestPointOnLine(segment);</span>
+<span class="fc" id="L158">            float distance = PVector.dist(new PVector(x, y), closest);</span>
+
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            if (distance &lt;= radius) {</span>
+                // 计算反弹方向
+<span class="fc" id="L162">                PVector normal = PVector.sub(new PVector(x, y), closest).normalize();</span>
+<span class="fc" id="L163">                PVector velocity = new PVector(vx, vy);</span>
+<span class="fc" id="L164">                PVector reflection = PVector.sub(velocity, PVector.mult(normal, 2 * PVector.dot(velocity, normal)));</span>
+<span class="fc" id="L165">                vx = reflection.x;</span>
+<span class="fc" id="L166">                vy = reflection.y;</span>
+<span class="fc" id="L167">                return true; // 发生碰撞</span>
+            }
+<span class="fc" id="L169">        }</span>
+<span class="fc" id="L170">        return false; // 没有碰撞</span>
+    }
+
+    // 计算球到线段的最近点
+    private PVector getClosestPointOnLine(PlayerLine.Line segment) {
+<span class="fc" id="L175">        PVector start = new PVector(segment.start.x, segment.start.y);</span>
+<span class="fc" id="L176">        PVector end = new PVector(segment.end.x, segment.end.y);</span>
+<span class="fc" id="L177">        PVector ballPosition = new PVector(x, y);</span>
+
+<span class="fc" id="L179">        PVector lineVector = PVector.sub(end, start);</span>
+<span class="fc" id="L180">        PVector ballToStart = PVector.sub(ballPosition, start);</span>
+<span class="fc" id="L181">        float t = PVector.dot(ballToStart, lineVector) / PVector.dot(lineVector, lineVector);</span>
+<span class="fc" id="L182">        t = PApplet.constrain(t, 0, 1);  // 限制 t 在 0 和 1 之间</span>
+<span class="fc" id="L183">        return PVector.add(start, PVector.mult(lineVector, t));  // 最近点</span>
+    }
+
+    public int shouldBeRemoved() {
+        // 检查球是否进入洞或满足其他移除条件
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        if (isBeingRemoved) {</span>
+<span class="fc" id="L189">            removeAnimationTime += 1;  // 增加动画时间</span>
+
+            // 渐渐缩小球
+<span class="fc" id="L192">            float scaleFactor = PApplet.map(removeAnimationTime, 0, maxRemoveAnimationTime, 0, 1);</span>
+<span class="fc" id="L193">            this.radius = 7 * scaleFactor;</span>
+<span class="fc" id="L194">            this.vx *= scaleFactor;</span>
+<span class="fc" id="L195">            this.vy *= scaleFactor;</span>
+
+            // 动画完成后移除球
+<span class="fc bfc" id="L198" title="All 4 branches covered.">            if (removeAnimationTime+12 &gt;= maxRemoveAnimationTime &amp;&amp; correct) {</span>
+<span class="fc" id="L199">                return 1;  // 完成移除</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            }else if(removeAnimationTime+12 &gt;= maxRemoveAnimationTime){</span>
+<span class="fc" id="L201">                return 2;</span>
+            }
+<span class="fc" id="L203">            return 0;  // 动画进行中，保持球在屏幕上</span>
+        }
+<span class="fc" id="L205">        Hole hole = level.checkHoleCollision(x, y);</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (hole != null) {</span>
+            // 计算球到洞的距离
+<span class="fc" id="L208">            PVector holeCenter = new PVector(hole.getCenterX(), hole.getCenterY());</span>
+<span class="fc" id="L209">            PVector ballPosition = new PVector(x, y);</span>
+<span class="fc" id="L210">            PVector attraction = PVector.sub(holeCenter, ballPosition);</span>
+<span class="fc" id="L211">            float distanceToHole = attraction.mag();</span>
+
+            // 如果球在 32 像素范围内，则开始吸引和缩小
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (distanceToHole &lt; 32) {</span>
+                // 计算吸引力，将向量的0.5%加到速度上
+<span class="fc" id="L216">                attraction.normalize();  // 归一化向量，确保吸引力方向正确</span>
+<span class="fc" id="L217">                attraction.mult(Math.max(0.008f * distanceToHole, 0.1f));</span>
+<span class="fc" id="L218">                this.vx += attraction.x;</span>
+<span class="fc" id="L219">                this.vy += attraction.y;</span>
+
+                // 逐渐缩小球的大小，距离越近球越小
+<span class="fc" id="L222">                float scaleFactor = PApplet.map(distanceToHole, 0, 32, 0, 1);</span>
+<span class="fc" id="L223">                this.radius = 16 * scaleFactor;  // 调整球的半径</span>
+
+                // 当球到达洞中心时，标记为移除
+<span class="fc bfc" id="L226" title="All 2 branches covered.">                if (distanceToHole &lt; 16) {</span>
+<span class="fc" id="L227">                    isBeingRemoved =true;</span>
+<span class="fc bfc" id="L228" title="All 6 branches covered.">                    if (hole.getColor() == colorIndex || colorIndex == 0 || hole.getColor() == 0) {  // 颜色匹配</span>
+<span class="fc" id="L229">                        ((App) p).updateScore(hole.getColor(), true);  // 更新分数</span>
+<span class="fc" id="L230">                        correct=true;  // 移除球</span>
+                    } else {
+
+<span class="fc" id="L233">                        ((App) p).updateScore(hole.getColor(), false);  // 颜色不匹配，分数减少</span>
+<span class="fc" id="L234">                        correct=false;  // 重置球</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L239">        return 0;</span>
+    }
+
+
+    // 显示球
+    public void display() {
+<span class="fc" id="L245">        p.image(image, x - radius, y - radius, radius * 2, radius * 2); // 绘制球的图片，中心对齐</span>
+<span class="fc" id="L246">    }</span>
+
+    // 获取球的速度 vx
+    public float getVx() {
+<span class="fc" id="L250">        return vx;</span>
+    }
+
+    // 获取球的速度 vy
+    public float getVy() {
+<span class="fc" id="L255">        return vy;</span>
+    }
+
+    // 获取球的图片
+    public int getColorIndex() {
+<span class="fc" id="L260">        return colorIndex;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
